@@ -155,25 +155,23 @@ public class InstallFeatureMojo extends BasicSupport {
 
     }
 
-    // validate parameters for command line installs
-    private boolean validateParameters() {
-        if (installDirectory != null && acceptLicense != null && acceptLicense.equals("true")
-                && (serverXmlFile != null | feature != null)) {
-            return true;
+    private void validateParameters() throws MojoExecutionException {
+        if (acceptLicense == null) {
+            throw new MojoExecutionException("The acceptLicense parameter is missing.");
         }
-        return false;
+        if (!new Boolean(acceptLicense).booleanValue()) {
+            throw new MojoExecutionException(
+                    "The acceptLicense input is false.  To accept the license, set acceptLicense to true.");
+        }
+        if ((feature == null || feature.isEmpty()) && (serverXmlFile == null || serverXmlFile.isEmpty())) {
+            throw new MojoExecutionException("Missing feature or serverXmlFile parameter.");
+        }
     }
 
     private void addCommandLineFeatures() throws MojoExecutionException {
-        if (validateParameters()) {
-            parseSingleFeature();
-            parseServerXmlForFeatures();
-
-        } else {
-            throw new MojoExecutionException(
-                    "Invalid parameters for command line mode. Ensure you pass in installDirectory,serverXmlFile or feature, and acceptLicense = true as the parameters");
-
-        }
+        validateParameters();
+        parseSingleFeature();
+        parseServerXmlForFeatures();
     }
 
     private void parseSingleFeature() throws MojoExecutionException {
@@ -304,6 +302,9 @@ public class InstallFeatureMojo extends BasicSupport {
         // io.openliberty.tools.common.plugins.util.ServerFeatureUtil.getServerXmlFeatures()
 
         if (serverXmlFile != null) {
+            if (!new File(serverXmlFile).exists()) {
+                throw new MojoExecutionException("Cannot locate the server xml " + serverXmlFile);
+            }
             try {
                 InputStream serverXMLInputStream = new FileInputStream(serverXmlFile);
                 Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(serverXMLInputStream);
@@ -319,10 +320,9 @@ public class InstallFeatureMojo extends BasicSupport {
                     }
                 }
             } catch (Exception e) {
-                throw new MojoExecutionException(e.getMessage());
+                throw new MojoExecutionException("The server xml is invalid :" + e.getMessage());
             }
         }
-
 
     }
 
@@ -333,7 +333,7 @@ public class InstallFeatureMojo extends BasicSupport {
         try (BufferedReader br = new BufferedReader(new FileReader(openLibProperties))) {
             String line;
             while ((line = br.readLine()) != null) {
-                if(line.startsWith("com.ibm.websphere.productVersion")) {
+                if (line.startsWith("com.ibm.websphere.productVersion")) {
                     return line.split("=")[1].trim();
                 }
             }
@@ -343,9 +343,6 @@ public class InstallFeatureMojo extends BasicSupport {
         }
 
         return null;
-
-
-
 
     }
 
